@@ -1,4 +1,4 @@
-package slade;
+package com.slade66;
 
 import java.io.*;
 import java.net.ServerSocket;
