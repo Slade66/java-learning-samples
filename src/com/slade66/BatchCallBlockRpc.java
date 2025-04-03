@@ -36,6 +36,19 @@ public class BatchCallBlockRpc {
         return formatted;
     }
 
+    /**
+     * 直接循环调用
+     */
+    @Test
+    public void testBatchCallBlockRpc0() {
+        for (int i = 1; i <= 1000; i++) {
+            System.out.println(callRpc() + " " + i);
+        }
+    }
+
+    /**
+     * 使用 CompletableFuture 异步调用
+     */
     @Test
     public void testBatchCallBlockRpc1() {
         int totalCalls = 1000;
