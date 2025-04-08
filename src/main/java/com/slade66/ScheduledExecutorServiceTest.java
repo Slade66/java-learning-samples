@@ -1,6 +1,5 @@
 package com.slade66;
 
-import org.junit.Test;
 
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -19,7 +18,6 @@ public class ScheduledExecutorServiceTest {
         }
     }
 
-    @Test
     public void basicUsage1() throws InterruptedException {
         ScheduledExecutorService scheduledExecutorService = Executors.newSingleThreadScheduledExecutor(new ThreadFactory() {
             private int i = 1;
