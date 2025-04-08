@@ -2,7 +2,7 @@ package com.slade66;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.HashMap;
 import java.util.Optional;

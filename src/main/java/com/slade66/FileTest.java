@@ -2,7 +2,7 @@ package com.slade66;
 
 import lombok.AllArgsConstructor;
 import lombok.ToString;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.*;
 
