@@ -2,6 +2,7 @@ package com.slade66;
 
 import org.junit.jupiter.api.Test;
 
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
@@ -160,6 +161,45 @@ public class PrintNumbersAndLettersAlternately {
 
                 } finally {
                     lock.unlock();
+                }
+            }
+        });
+
+        threadA.start();
+        threadB.start();
+
+        threadA.join();
+        threadB.join();
+    }
+
+    @Test
+    public void solution4() throws InterruptedException {
+        Semaphore numberPermit = new Semaphore(1);
+        Semaphore alphabetPermit = new Semaphore(0);
+
+        Thread threadA = new Thread(() -> {
+            int number = 1;
+            while (number <= 52) {
+                try {
+                    numberPermit.acquire();
+                    System.out.print(number++);
+                    System.out.print(number++);
+                    alphabetPermit.release();
+                } catch (InterruptedException ignored) {
+
+                }
+            }
+        });
+
+        Thread threadB = new Thread(() -> {
+            char c = 'A';
+            while (c <= 'Z') {
+                try {
+                    alphabetPermit.acquire();
+                    System.out.print(c++);
+                    numberPermit.release();
+                } catch (InterruptedException ignored) {
+
                 }
             }
         });
