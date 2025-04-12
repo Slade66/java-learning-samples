@@ -2,6 +2,8 @@ package com.slade66;
 
 import org.junit.jupiter.api.Test;
 
+import java.util.concurrent.atomic.AtomicBoolean;
+
 /**
  * <h1>交替打印数字和字母</h1>
  *
@@ -62,6 +64,55 @@ public class PrintNumbersAndLettersAlternately {
                 }
             }
         }, "线程 B").start();
+    }
+
+    @Test
+    public void solution2() throws InterruptedException {
+        AtomicBoolean isNumber = new AtomicBoolean(true);
+        Object lock = new Object();
+
+        Thread threadA = new Thread(() -> {
+            int num = 1;
+            while (num <= 52) {
+                synchronized (lock) {
+                    while (!isNumber.get()) {
+                        try {
+                            lock.wait();
+                        } catch (InterruptedException ignored) {
+
+                        }
+                    }
+                    System.out.print(num++);
+                    System.out.print(num++);
+                    isNumber.set(false);
+                    lock.notify();
+                }
+            }
+        }, "线程 A");
+
+        Thread threadB = new Thread(() -> {
+            char c = 'A';
+            while (c <= 'Z') {
+                synchronized (lock) {
+                    while (isNumber.get()) {
+                        try {
+                            lock.wait();
+                        } catch (InterruptedException ignored) {
+
+                        }
+                    }
+                    System.out.print(c++);
+                    isNumber.set(true);
+                    lock.notify();
+                }
+            }
+        }, "线程 B");
+
+        threadA.start();
+        threadB.start();
+
+        threadA.join();
+        threadB.join();
     }
 
 }
