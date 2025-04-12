@@ -3,6 +3,9 @@ package com.slade66;
 import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * <h1>交替打印数字和字母</h1>
@@ -107,6 +110,59 @@ public class PrintNumbersAndLettersAlternately {
                 }
             }
         }, "线程 B");
+
+        threadA.start();
+        threadB.start();
+
+        threadA.join();
+        threadB.join();
+    }
+
+    @Test
+    public void solution3() throws InterruptedException {
+        Lock lock = new ReentrantLock();
+        AtomicBoolean isNumber = new AtomicBoolean(true);
+        Condition numberCondition = lock.newCondition();
+        Condition alphabetCondition = lock.newCondition();
+
+        Thread threadA = new Thread(() -> {
+            int num = 1;
+            while (num <= 52) {
+                try {
+                    lock.lock();
+                    while (!isNumber.get()) {
+                        numberCondition.await();
+                    }
+                    System.out.print(num++);
+                    System.out.print(num++);
+                    isNumber.set(false);
+                    alphabetCondition.signal();
+                } catch (InterruptedException ignored) {
+
+                } finally {
+                    lock.unlock();
+                }
+            }
+        });
+
+        Thread threadB = new Thread(() -> {
+            char c = 'A';
+            while (c <= 'Z') {
+                try {
+                    lock.lock();
+                    while (isNumber.get()) {
+                        alphabetCondition.await();
+                    }
+                    System.out.print(c++);
+                    isNumber.set(true);
+                    numberCondition.signal();
+                } catch (InterruptedException ignored) {
+
+                } finally {
+                    lock.unlock();
+                }
+            }
+        });
 
         threadA.start();
         threadB.start();
