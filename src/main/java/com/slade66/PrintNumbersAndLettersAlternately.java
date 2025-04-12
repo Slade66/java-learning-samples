@@ -2,7 +2,10 @@ package com.slade66;
 
 import org.junit.jupiter.api.Test;
 
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Semaphore;
+import java.util.concurrent.SynchronousQueue;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
@@ -206,6 +209,49 @@ public class PrintNumbersAndLettersAlternately {
 
         threadA.start();
         threadB.start();
+
+        threadA.join();
+        threadB.join();
+    }
+
+    @Test
+    public void solution5() throws InterruptedException {
+        SynchronousQueue<Integer> callThreadA = new SynchronousQueue<>();
+        SynchronousQueue<Integer> callThreadB = new SynchronousQueue<>();
+
+        Thread threadA = new Thread(() -> {
+            int num = 1;
+            while (num <= 52) {
+                try {
+                    callThreadA.take();
+                    System.out.print(num++);
+                    System.out.print(num++);
+                    callThreadB.put(1);
+                } catch (InterruptedException ignored) {
+
+                }
+            }
+        });
+
+        Thread threadB = new Thread(() -> {
+            char c = 'A';
+            while (c <= 'Z') {
+                try {
+                    callThreadB.take();
+                    System.out.print(c++);
+                    if (c <= 'Z') {
+                        callThreadA.put(1);
+                    }
+                } catch (InterruptedException ignored) {
+
+                }
+            }
+        });
+
+        threadA.start();
+        threadB.start();
+
+        callThreadA.put(1);
 
         threadA.join();
         threadB.join();
