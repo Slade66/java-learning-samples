@@ -11,13 +11,11 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.stream.Stream;
 
 @RequiredArgsConstructor
 public class MultiThreadDownloader {
@@ -48,6 +46,7 @@ public class MultiThreadDownloader {
 
     private void start() {
         try {
+            long startTime = System.currentTimeMillis();
             extractFileNameFromUrl(downloadPath);
             createTempDirectory();
             ContentLengthAndAcceptRangesDTO contentLengthAndAcceptRanges = fetchContentLengthAndAcceptRanges();
@@ -57,9 +56,21 @@ public class MultiThreadDownloader {
             Map<Integer, List<Long>> tasks = calculateByteRangeForThreads(contentLength);
 //            printTasks(tasks);
             downloadTasks(tasks);
+
+            long endTime = System.currentTimeMillis();
+            long durationMillis = endTime - startTime;
+            System.out.println(formatMillis(durationMillis));
         } catch (IOException | InterruptedException e) {
             e.printStackTrace();
         }
+    }
+
+    public static String formatMillis(long millis) {
+        long hours = millis / (1000 * 60 * 60);
+        long minutes = (millis / (1000 * 60)) % 60;
+        long seconds = (millis / 1000) % 60;
+
+        return String.format("%02d:%02d:%02d", hours, minutes, seconds);
     }
 
     private void createTempDirectory() {
@@ -96,9 +107,30 @@ public class MultiThreadDownloader {
                 Files.copy(chunkPath, outputStream);
             }
             System.out.println("文件合并完成！");
+            deleteTempDir();
         } catch (IOException e) {
             System.err.println("文件合并失败：" + e.getMessage());
         }
+    }
+
+    private void deleteTempDir() {
+        if (!Files.exists(tempDir)) {
+            return;
+        }
+        try (Stream<Path> paths = Files.walk(tempDir)) {
+            paths.sorted(Comparator.reverseOrder()).forEach(path -> {
+                try {
+                    Files.delete(path);
+                } catch (IOException e) {
+                    System.err.println(e.getMessage());
+                    e.printStackTrace();
+                }
+            });
+        } catch (IOException e) {
+            System.err.println(e.getMessage());
+            e.printStackTrace();
+        }
+        System.out.println("删除缓存文件夹成功！");
     }
 
     @RequiredArgsConstructor
