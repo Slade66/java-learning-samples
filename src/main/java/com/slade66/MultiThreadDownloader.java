@@ -23,8 +23,11 @@ import java.util.concurrent.TimeUnit;
 public class MultiThreadDownloader {
 
     private final String downloadPath;
+
     private final long chunkSize = 5 * 1024 * 1024;
     private final int maxAttempts = 3;
+    private String filename;
+    private Path tempDir;
 
     public ContentLengthAndAcceptRangesDTO fetchContentLengthAndAcceptRanges() throws IOException, InterruptedException {
         HttpClient httpClient = HttpClient.newHttpClient();
@@ -45,6 +48,8 @@ public class MultiThreadDownloader {
 
     private void run() {
         try {
+            extractFileNameFromUrl(downloadPath);
+            createTempDirectory();
             ContentLengthAndAcceptRangesDTO contentLengthAndAcceptRanges = fetchContentLengthAndAcceptRanges();
             long contentLength = contentLengthAndAcceptRanges.getContentLength();
             String acceptRanges = contentLengthAndAcceptRanges.getAcceptRanges();
@@ -57,30 +62,35 @@ public class MultiThreadDownloader {
         }
     }
 
-    private void downloadTasks(Map<Integer, List<Long>> tasks) {
-        ExecutorService threadPool = Executors.newFixedThreadPool(tasks.size());
-        Path tempDir = null;
+    private void createTempDirectory() {
         try {
-            tempDir = Files.createTempDirectory("download_chunks");
+            tempDir = Files.createTempDirectory("download_chunks_");
         } catch (IOException e) {
             System.err.println("创建下载文件夹失败" + e.getMessage());
             e.printStackTrace();
         }
+    }
 
-        Path finalTempDir = tempDir;
+    private void extractFileNameFromUrl(String downloadPath) {
+        String[] urlParts = downloadPath.split("/");
+        filename = urlParts[urlParts.length - 1];
+    }
+
+    private void downloadTasks(Map<Integer, List<Long>> tasks) {
+        ExecutorService threadPool = Executors.newFixedThreadPool(tasks.size());
         tasks.forEach((taskId, byteRange) -> {
-            threadPool.submit(new downloadTask(finalTempDir, taskId, byteRange));
+            threadPool.submit(new downloadTask(taskId, byteRange));
         });
         try {
             threadPool.awaitTermination(15, TimeUnit.SECONDS);
         } catch (InterruptedException ignored) {
 
         }
-        mergeChunks(tempDir, tasks.size());
+        mergeChunks(tasks.size());
     }
 
-    private void mergeChunks(Path tempDir, int taskSize) {
-        try (var outputStream = Files.newOutputStream(Path.of("final_output_file.tmp"))) {
+    private void mergeChunks(int taskSize) {
+        try (var outputStream = Files.newOutputStream(Path.of(filename))) {
             for (int i = 0; i < taskSize; i++) {
                 Path chunkPath = tempDir.resolve("chunk_" + i + ".tmp");
                 Files.copy(chunkPath, outputStream);
@@ -94,7 +104,6 @@ public class MultiThreadDownloader {
     @RequiredArgsConstructor
     class downloadTask implements Runnable {
 
-        private final Path tempDir;
         private final int taskId;
         private final List<Long> byteRange;
 
