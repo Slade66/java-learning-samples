@@ -15,9 +15,9 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
 
 @RequiredArgsConstructor
 public class MultiThreadDownloader {
@@ -46,7 +46,7 @@ public class MultiThreadDownloader {
         private final String acceptRanges;
     }
 
-    private void run() {
+    private void start() {
         try {
             extractFileNameFromUrl(downloadPath);
             createTempDirectory();
@@ -78,14 +78,14 @@ public class MultiThreadDownloader {
 
     private void downloadTasks(Map<Integer, List<Long>> tasks) {
         ExecutorService threadPool = Executors.newFixedThreadPool(tasks.size());
+        List<CompletableFuture<Void>> cfs = new ArrayList<>();
         tasks.forEach((taskId, byteRange) -> {
-            threadPool.submit(new downloadTask(taskId, byteRange));
+            CompletableFuture<Void> cf = CompletableFuture.runAsync(new downloadTask(taskId, byteRange), threadPool);
+            cfs.add(cf);
         });
-        try {
-            threadPool.awaitTermination(15, TimeUnit.SECONDS);
-        } catch (InterruptedException ignored) {
-
-        }
+        CompletableFuture<Void> acf = CompletableFuture.allOf(cfs.toArray(new CompletableFuture[0]));
+        acf.join();
+        threadPool.shutdown();
         mergeChunks(tasks.size());
     }
 
@@ -117,15 +117,15 @@ public class MultiThreadDownloader {
                 try {
                     HttpResponse<byte[]> httpResponse = httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofByteArray());
                     if (httpResponse.statusCode() != 206) {
-                        System.err.printf("%s %ld-%ld 下载失败%n", taskId, startByte, endByte);
+                        System.err.printf("%s %d-%d 下载失败%n", taskId, startByte, endByte);
                         return;
                     }
                     Files.write(tempDir.resolve("chunk_" + taskId + ".tmp"), httpResponse.body());
-                    System.out.printf("%s %ld-%ld 下载完成%n", taskId, startByte, endByte);
+                    System.out.printf("%s %d-%d 下载完成%n", taskId, startByte, endByte);
                     break;
                 } catch (IOException | InterruptedException e) {
                     if (i == maxAttempts - 1) {
-                        System.err.printf("%s %ld-%ld 下载失败%n", taskId, startByte, endByte);
+                        System.err.printf("%s %d-%d 下载失败%n", taskId, startByte, endByte);
                         e.printStackTrace();
                     }
                 }
@@ -163,7 +163,7 @@ public class MultiThreadDownloader {
 
     public static void main(String[] args) {
         MultiThreadDownloader multiThreadDownloader = new MultiThreadDownloader("https://assets.mubu.com/client/Mubu-5.0.0.exe");
-        multiThreadDownloader.run();
+        multiThreadDownloader.start();
     }
 
 }
